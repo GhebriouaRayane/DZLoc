@@ -370,12 +370,34 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 });
 
 // Login Handler
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     if (!validateForm(this)) return;
     showLoading();
+
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
+
+    // Connexion à Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    hideLoading();
+
+    if (error) {
+        alert("❌ Erreur de connexion : " + error.message);
+        console.error(error);
+    } else {
+        // Sauvegarde du token (session) dans localStorage
+        localStorage.setItem("supabase.auth.token", JSON.stringify(data.session));
+
+        alert("✅ Connexion réussie !");
+        // Redirection après connexion
+        window.location.href = "/index.html"; 
+    }
+});
 
     // Appel API vers le backend
     fetch('/api/auth/login', {
