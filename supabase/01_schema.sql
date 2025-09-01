@@ -4,7 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   phone text,
-  user_type text check (user_type in ('tenant','owner')) not null,
+  user_type text check (user_type in ('tenant','owner')) not null default 'tenant',
   avatar_url text,
   bio text,
   created_at timestamp with time zone default now()
@@ -121,18 +121,33 @@ for update using (exists (
   select 1 from public.properties p where p.id = visits.property_id and p.owner_id = auth.uid()
 ));
 
--- conversations & messages
+-- conversations
 create policy "participants manage conversations" on public.conversations
 for all using (auth.uid() = user1_id or auth.uid() = user2_id)
 with check (auth.uid() = user1_id or auth.uid() = user2_id);
 
+-- messages
 create policy "participants manage messages" on public.messages
 for all using (exists (
   select 1 from public.conversations c
-  where c.id = messages.conversation_id and (c.user1_id = auth.uid() or c.user2_id = auth.uid())
+  where c.id = messages.conversation_id
+  and (c.user1_id = auth.uid() or c.user2_id = auth.uid())
 ));
 
 -- reviews
 create policy "read reviews" on public.reviews for select using (true);
 create policy "user create review" on public.reviews for insert with check (auth.uid() = user_id);
 
+-- ====== TRIGGER: auto-create profile ======
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, full_name, user_type)
+  values (new.id, '', 'tenant'); -- par défaut on met "tenant"
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute procedure public.handle_new_user();
