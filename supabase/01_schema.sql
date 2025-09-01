@@ -1,6 +1,4 @@
--- =======================
--- 1) TABLES PRINCIPALES
--- =======================
+-- ====== TABLES ======
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -27,8 +25,8 @@ create table if not exists public.properties (
   city text,
   whatsapp text,
   description text,
-  amenities text[] default '{}',
-  images text[] default '{}',
+  amenities text[] default '{}'::text[],
+  images text[] default '{}'::text[],
   views integer default 0,
   created_at timestamp with time zone default now()
 );
@@ -77,9 +75,7 @@ create table if not exists public.reviews (
   created_at timestamp with time zone default now()
 );
 
--- ===========================
--- 2) SÉCURITÉ RLS (Row Level)
--- ===========================
+-- ====== RLS (enable) ======
 alter table public.profiles enable row level security;
 alter table public.properties enable row level security;
 alter table public.favorites enable row level security;
@@ -88,24 +84,27 @@ alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.reviews enable row level security;
 
--- ===========================
--- 3) POLITIQUES D’ACCÈS
--- ===========================
+-- ====== POLICIES ======
+
+-- profiles
 create policy "read profiles" on public.profiles
 for select using (true);
 
 create policy "update own profile" on public.profiles
 for update using (auth.uid() = id);
 
+-- properties
 create policy "read properties" on public.properties
 for select using (true);
 
 create policy "owner manage properties" on public.properties
 for all using (auth.uid() = owner_id);
 
+-- favorites
 create policy "user manage favorites" on public.favorites
 for all using (auth.uid() = user_id);
 
+-- visits
 create policy "tenant create visit" on public.visits
 for insert with check (auth.uid() = user_id);
 
@@ -122,6 +121,7 @@ for update using (exists (
   select 1 from public.properties p where p.id = visits.property_id and p.owner_id = auth.uid()
 ));
 
+-- conversations & messages
 create policy "participants manage conversations" on public.conversations
 for all using (auth.uid() = user1_id or auth.uid() = user2_id)
 with check (auth.uid() = user1_id or auth.uid() = user2_id);
@@ -132,8 +132,7 @@ for all using (exists (
   where c.id = messages.conversation_id and (c.user1_id = auth.uid() or c.user2_id = auth.uid())
 ));
 
-create policy "read reviews" on public.reviews
-for select using (true);
+-- reviews
+create policy "read reviews" on public.reviews for select using (true);
+create policy "user create review" on public.reviews for insert with check (auth.uid() = user_id);
 
-create policy "user create review" on public.reviews
-for insert with check (auth.uid() = user_id);
