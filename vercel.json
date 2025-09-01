@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "src/api/**/*.ts": { "runtime": "nodejs20.x" }
+  },
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/src/api/$1" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}
